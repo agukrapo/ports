@@ -21,3 +21,8 @@ Note: you may need to replace `$PWD` with the current absolute path.
 `make lint`
 
 Note: [golangci-lint](https://golangci-lint.run/usage/install/) must be installed.
+
+## Missing features
+
+* Proper unit test coverage for `database` and `service` packages.
+* End to end service integration test using test containers.
