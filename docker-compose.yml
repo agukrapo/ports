@@ -1,0 +1,22 @@
+services:
+  ports:
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - DATABASE_DSN=postgres://ports:ports@postgres:5432/ports
+    build:
+      context: .
+
+  postgres:
+    image: postgres:14-alpine
+    healthcheck:
+      test: [ "CMD", "pg_isready", "-q", "-d", "ports", "-U", "ports" ]
+      timeout: 45s
+      interval: 10s
+      retries: 10
+    environment:
+      - POSTGRES_USER=root
+      - POSTGRES_PASSWORD=password
+    volumes:
+      - ./scripts/db:/docker-entrypoint-initdb.d/
