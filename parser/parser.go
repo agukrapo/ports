@@ -22,13 +22,13 @@ type Port struct {
 	Code        string    `json:"code"`
 }
 
-// Parser represents a port json stream parser.
-type Parser struct {
+// Iterator represents a port json stream iterator.
+type Iterator struct {
 	dec *json.Decoder
 }
 
-// New instantiates a Parser.
-func New(r io.Reader) (*Parser, error) {
+// New instantiates an Iterator.
+func New(r io.Reader) (*Iterator, error) {
 	d := json.NewDecoder(r)
 
 	if _, err := d.Token(); errors.Is(err, io.EOF) {
@@ -37,18 +37,18 @@ func New(r io.Reader) (*Parser, error) {
 		return nil, err
 	}
 
-	return &Parser{
+	return &Iterator{
 		dec: d,
 	}, nil
 }
 
-// More tells if there is a Port in the Parser.
-func (p *Parser) More() bool {
+// More tells if there is a Port in the Iterator.
+func (p *Iterator) More() bool {
 	return p.dec.More()
 }
 
-// Next populates the input port with the next Port in the Parser.
-func (p *Parser) Next(port *Port) error {
+// Next populates the input port with the next Port in the Iterator.
+func (p *Iterator) Next(port *Port) error {
 	token, err := p.dec.Token()
 	if err != nil {
 		return err
