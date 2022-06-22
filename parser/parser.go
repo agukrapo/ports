@@ -2,6 +2,7 @@
 package parser
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -43,13 +44,13 @@ func New(r io.Reader) (*Iterator, error) {
 }
 
 // More tells if there is a Port in the Iterator.
-func (p *Iterator) More() bool {
-	return p.dec.More()
+func (i *Iterator) More() bool {
+	return i.dec.More()
 }
 
 // Next populates the input port with the next Port in the Iterator.
-func (p *Iterator) Next(port *Port) error {
-	token, err := p.dec.Token()
+func (i *Iterator) Next(port *Port) error {
+	token, err := i.dec.Token()
 	if err != nil {
 		return err
 	}
@@ -59,10 +60,41 @@ func (p *Iterator) Next(port *Port) error {
 		return fmt.Errorf("invalid key: %v", token)
 	}
 
-	if err := p.dec.Decode(&port); err != nil {
+	if err := i.dec.Decode(&port); err != nil {
 		return err
 	}
 
 	port.Key = k
 	return nil
+}
+
+// Packet represents either a parsed Port or an error.
+type Packet struct {
+	Port *Port
+	Err  error
+}
+
+// Stream return a Packet unbuffered channel.
+func (i *Iterator) Stream(ctx context.Context) chan Packet {
+	out := make(chan Packet)
+
+	go func() {
+		defer close(out)
+
+		for i.More() {
+			var p Port
+			if err := i.Next(&p); err != nil {
+				out <- Packet{Err: err}
+				return
+			}
+
+			select {
+			case out <- Packet{Port: &p}:
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+
+	return out
 }

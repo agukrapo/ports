@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -10,10 +11,25 @@ import (
 
 	"github.com/agukrapo/ports/database"
 	"github.com/agukrapo/ports/parser"
+	"github.com/agukrapo/ports/server/rest"
 	"github.com/agukrapo/ports/service"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
+
+type usageError string
+
+func (e usageError) Error() string {
+	return string(e) + `
+
+usage:
+  ports COMMAND ARG
+
+available COMMANDS
+  cli: command line interface, requires an extra file path argument
+  rest: REST server
+`
+}
 
 func main() {
 	if err := exec(); err != nil {
@@ -25,7 +41,26 @@ func main() {
 func exec() error {
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.Kitchen})
 
-	file, err := openFile()
+	if len(os.Args) < 2 {
+		return usageError("missing COMMAND argument")
+	}
+
+	switch os.Args[1] {
+	case "cli":
+		return runCLI()
+	case "rest":
+		return runREST()
+	default:
+		return usageError("invalid COMMAND argument: " + os.Args[1])
+	}
+}
+
+func runCLI() error {
+	if len(os.Args) < 3 {
+		return errors.New("file path argument missing")
+	}
+
+	file, err := os.Open(os.Args[2])
 	if err != nil {
 		return err
 	}
@@ -42,7 +77,9 @@ func exec() error {
 	}
 	defer safeClose(db)
 
-	svc := service.New(src, db)
+	svc := service.New(db)
+
+	ctx, cancel := context.WithCancel(context.Background())
 
 	go func() {
 		quit := make(chan os.Signal, 1)
@@ -50,22 +87,34 @@ func exec() error {
 		<-quit
 
 		log.Info().Msg("Gracefully stopping...")
-		svc.Stop()
+		cancel()
 	}()
 
-	log.Info().Msg("Ports app started")
-	svc.Start()
-	log.Info().Msg("Ports app finished")
+	log.Info().Msg("Ports cli started")
+	svc.Process(ctx, src)
+	log.Info().Msg("Ports cli finished")
 
 	return nil
 }
 
-func openFile() (io.ReadCloser, error) {
-	if len(os.Args) == 1 {
-		return nil, errors.New("file path argument missing")
+func runREST() error {
+	db, err := openDB()
+	if err != nil {
+		return err
+	}
+	defer safeClose(db)
+
+	port, ok := os.LookupEnv("PORT")
+	if !ok {
+		port = "8080"
 	}
 
-	return os.Open(os.Args[1])
+	server := rest.New(port, service.New(db))
+
+	server.Start()
+	server.Listen()
+
+	return nil
 }
 
 func openDB() (*database.Database, error) {

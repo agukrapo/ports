@@ -1,10 +1,17 @@
 # Ports service
 
 ## Usage
+A Postgres connection string must be provided in the `DATABASE_DSN` environment variable (see `.env.example`).
 
-`make build && ./bin/ports ports.json`
+### CLI
+`make build && ./bin/ports cli ports.json`
 
-Note: a Postgres connection string must be provided in the `DATABASE_DSN` environment variable (see `.env.example`).
+### REST server
+`make build && ./bin/ports rest`
+
+In other terminal
+
+`curl -v -X PUT -F file=@ports.json localhost:8080/upload `
 
 ### Docker
 
