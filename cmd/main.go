@@ -10,8 +10,9 @@ import (
 	"time"
 
 	"github.com/agukrapo/ports/database"
+	"github.com/agukrapo/ports/grpc"
 	"github.com/agukrapo/ports/parser"
-	"github.com/agukrapo/ports/server/rest"
+	"github.com/agukrapo/ports/rest"
 	"github.com/agukrapo/ports/service"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -50,6 +51,10 @@ func exec() error {
 		return runCLI()
 	case "rest":
 		return runREST()
+	case "grpc-server":
+		return runGRPCServer()
+	case "grpc-client":
+		return runGRPCClient()
 	default:
 		return usageError("invalid COMMAND argument: " + os.Args[1])
 	}
@@ -113,6 +118,61 @@ func runREST() error {
 
 	server.Start()
 	server.Listen()
+
+	return nil
+}
+
+func runGRPCServer() error {
+	db, err := openDB()
+	if err != nil {
+		return err
+	}
+	defer safeClose(db)
+
+	port, ok := os.LookupEnv("PORT")
+	if !ok {
+		port = "8080"
+	}
+
+	server := grpc.NewServer(port, service.New(db))
+
+	server.Start()
+	server.Listen()
+	return nil
+}
+
+func runGRPCClient() error {
+	if len(os.Args) < 3 {
+		return errors.New("server address argument missing")
+	}
+	if len(os.Args) < 4 {
+		return errors.New("file path argument missing")
+	}
+
+	client, err := grpc.NewClient(os.Args[2])
+	if err != nil {
+		return err
+	}
+
+	file, err := os.Open(os.Args[3])
+	if err != nil {
+		return err
+	}
+	defer safeClose(file)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() {
+		quit := make(chan os.Signal, 1)
+		signal.Notify(quit, os.Interrupt)
+		<-quit
+
+		log.Info().Msg("Gracefully stopping...")
+		cancel()
+	}()
+
+	if err := client.Upload(ctx, file); err != nil {
+		return err
+	}
 
 	return nil
 }

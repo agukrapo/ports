@@ -11,11 +11,18 @@ A Postgres connection string must be provided in the `DATABASE_DSN` environment 
 
 In other terminal
 
-`curl -v -X PUT -F file=@ports.json localhost:8080/upload `
+`curl -v -X PUT -F file=@ports.json localhost:8080/upload`
+
+### gRPC server
+`make build && ./bin/ports grpc-server`
+
+In other terminal
+
+`./bin/ports grpc-client localhost:8080 ports.json`
 
 ### Docker
 
-`docker-compose run -v "$PWD:$PWD" ports $PWD/ports.json`
+`docker-compose run -v "$PWD:$PWD" ports cli $PWD/ports.json`
 
 Note: you may need to replace `$PWD` with the current absolute path.
 

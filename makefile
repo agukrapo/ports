@@ -12,6 +12,9 @@ clean:
 build: clean
 	@echo "Building ${NAME}..."
 	@go mod download
+	@protoc --go_out=. --go_opt=paths=source_relative \
+		--go-grpc_out=. --go-grpc_opt=paths=source_relative \
+		grpc/upload.proto
 	@go build -o ./bin/${NAME} ./cmd
 
 test:

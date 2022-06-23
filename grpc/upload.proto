@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+option go_package = "github.com/agukrapo/ports/server/grpc";
+
+package grpc;
+
+service Upload {
+  rpc Upload (stream Request) returns (Response) {}
+}
+
+message Request {
+  bytes Chunk = 1;
+}
+
+message Response {
+  string Result = 1;
+}
